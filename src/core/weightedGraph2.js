@@ -2,6 +2,7 @@
 
 import {
   type Edge,
+  type EdgesOptions,
   type Node,
   type EdgeAddressT,
   type NodeAddressT,
@@ -10,7 +11,7 @@ import {
 import {type NodeWeight} from "./weights/nodeWeights";
 import {type EdgeWeight} from "./weights/edgeWeights";
 import {type WeightsComparison} from "./weights/weightsT";
-import {NodeTrie, EdgeTrie} from "./trie";
+import {Weights, type WeightsI} from "./weights";
 
 /**
  * An entry in the array returned by AddressModule.toParts()
@@ -37,62 +38,92 @@ export type WeightedEdge = {|
  * WeightedGraph2 should completely replace it.
  */
 export class WeightedGraph2 {
-  _nodeWeights: NodeTrie<NodeWeight>;
-  _edgeWeights: EdgeTrie<EdgeWeight>;
+  _weights: WeightsI;
   graph: Graph;
+
+  constructor(graph?: Graph) {
+    this.graph = graph ? graph : new Graph();
+    this._weights = new Weights();
+  }
 
   /**
    * Set the weight for a node address prefix.
    */
-  setNodePrefixWeight(
-    _unused_prefix: NodeAddressT,
-    _unused_w: NodeWeight
-  ): this {
-    throw new Error("method not implemented");
+  setNodePrefixWeight(prefix: NodeAddressT, w: NodeWeight): this {
+    this._weights.setNodeWeight(prefix, w);
+    return this;
   }
 
   /**
    * Set the weights for an edge address prefix.
    */
-  setEdgePrefixWeight(
-    _unused_prefix: EdgeAddressT,
-    _unused_w: NodeWeight
-  ): this {
-    throw new Error("method not implemented");
+  setEdgePrefixWeight(prefix: EdgeAddressT, w: EdgeWeight): this {
+    this._weights.setEdgeWeight(prefix, w);
+    return this;
   }
 
   /**
    * Add a node and optionally assign its weight. If a weight is not passed in,
    * the weight will default to 1.
    */
-  addNode(_unused_n: Node, _unused_w?: NodeWeight): this {
-    throw new Error("method not implemented");
+  addNode(n: Node, w?: NodeWeight): this {
+    this.graph.addNode(n);
+    if (w != null) this._weights.setNodeWeight(n.address, w);
+    return this;
   }
 
-  node(_unused_a: NodeAddressT): ?WeightedNode {
-    throw new Error("method not implemented");
+  node(n: NodeAddressT): ?WeightedNode {
+    const node = this.graph.node(n);
+    if (node) {
+      return {
+        node,
+        weight: this._weights.getNodeWeight(n),
+      };
+    }
   }
 
   nodes(options?: {|+prefix: NodeAddressT|}): Iterator<WeightedNode> {
-    const _ = options;
-    throw new Error("method not implemented");
+    return this._nodesIterator(options);
+  }
+
+  *_nodesIterator(options?: {|+prefix: NodeAddressT|}): Iterator<WeightedNode> {
+    const nodes = this.graph.nodes(options);
+    for (const node of nodes) {
+      const weight = this._weights.getNodeWeight(node.address);
+      yield {node, weight};
+    }
   }
 
   /**
    * Add an edge and optionally assign its weight. If a prefix of the edge's
    * address doesn't have a weight assigned, the weight will default to 1.
    */
-  addEdge(_unused_e: Edge, _unused_w?: EdgeWeight): this {
-    throw new Error("method not implemented");
+  addEdge(e: Edge, w?: EdgeWeight): this {
+    this.graph.addEdge(e);
+    if (w != null) this._weights.setEdgeWeight(e.address, w);
+    return this;
   }
 
-  edge(_unused_a: EdgeAddressT): ?WeightedEdge {
-    throw new Error("method not implemented");
+  edge(e: EdgeAddressT): ?WeightedEdge {
+    const edge = this.graph.edge(e);
+    if (edge) {
+      return {
+        edge,
+        weight: this._weights.getEdgeWeight(e),
+      };
+    }
   }
 
-  edges(options?: {|+prefix: EdgeAddressT|}): Iterator<WeightedEdge> {
-    const _ = options;
-    throw new Error("method not implemented");
+  edges(options: EdgesOptions): Iterator<WeightedEdge> {
+    return this._edgesIterator(options);
+  }
+
+  *_edgesIterator(options: EdgesOptions): Iterator<WeightedEdge> {
+    const edges = this.graph.edges(options);
+    for (const edge of edges) {
+      const weight = this._weights.getEdgeWeight(edge.address);
+      yield {edge, weight};
+    }
   }
 
   /**
